@@ -21,7 +21,6 @@ module Rack
 
       def call(env)
         request = Rack::Request.new(env)
-
         signed_request = request.params.delete('signed_request')
         unless signed_request.nil?
           signature, signed_params = signed_request.split('.')
@@ -33,8 +32,9 @@ module Rack
           signed_params = Yajl::Parser.new.parse(base64_url_decode(signed_params))
 
           # add JSON params to request
+          request.params['facebook'] = {}
           signed_params.each do |k,v|
-            request.params[k] = v
+            request.params['facebook'][k] = v
           end
         end
         @app.call(env)
