@@ -33,8 +33,9 @@ module Rack
           signed_params = Yajl::Parser.new.parse(base64_url_decode(signed_params))
 
           # add JSON params to request
+          request.params['facebook'] = {}
           signed_params.each do |k,v|
-            request.params[k] = v
+            request.params['facebook'][k] = v
           end
         end
         @app.call(env)
