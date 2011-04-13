@@ -9,15 +9,18 @@ require 'yajl'
 module Rack
   module Facebook
     class SignedRequest
+
       def initialize(app, options, &condition)
         @app = app
         @condition = condition
         @options = options
       end
 
+
       def secret
         @options.fetch(:secret)
       end
+
 
       def call(env)
         request = Rack::Request.new(env)
@@ -26,11 +29,11 @@ module Rack
         unless signed_request.nil?
           signature, signed_params = signed_request.split('.')
 
-          unless signed_request_is_valid?(secret, signature, signed_params)
+          unless self.class.valid_signature?(secret, signature, signed_params)
             return Rack::Response.new(["Invalid signature"], 400).finish
           end
 
-          signed_params = Yajl::Parser.new.parse(base64_url_decode(signed_params))
+          signed_params = self.class.json_from_payload(signed_params)
 
           # add JSON params to request
           request.params['facebook'] = {}
@@ -41,18 +44,30 @@ module Rack
         @app.call(env)
       end
 
-      private
 
-        def signed_request_is_valid?(secret, signature, params)
-          signature = base64_url_decode(signature)
-          expected_signature = OpenSSL::HMAC.digest('SHA256', secret, params.tr("-_", "+/"))
-          return signature == expected_signature
-        end
+      def self.json_from_payload(payload)
+        Yajl::Parser.new.parse(base64_url_decode(payload))
+      end
 
-        def base64_url_decode(str)
-          str = str + "=" * (6 - str.size % 6) unless str.size % 6 == 0
-          return Base64.decode64(str.tr("-_", "+/"))
-        end
+
+      def self.valid_signature?(secret, signature, data)
+        signature = base64_url_decode(signature)
+        expected_signature = OpenSSL::HMAC.digest('SHA256', secret, data.tr("-_", "+/")) #TODO Is this tr supposed to be here?
+        signature == expected_signature
+      end
+
+
+      def self.base64_url_decode(str)
+        str = str + "=" * (6 - str.size % 6) unless str.size % 6 == 0
+        Base64.decode64(str.tr('-_', '+/'))
+      end
+
+
+      def self.base64_url_encode(str)
+        Base64.encode64(str).tr('+/', '-_').chomp.gsub(/=+$/, '')
+      end
+
+
     end
   end
 end
