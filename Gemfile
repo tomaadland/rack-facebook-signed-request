@@ -6,4 +6,5 @@ gem 'rack'
 group :development do
   gem 'jeweler'
   gem 'rcov'
+  gem 'shoulda'
 end
