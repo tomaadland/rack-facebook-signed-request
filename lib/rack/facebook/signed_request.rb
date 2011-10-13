@@ -18,7 +18,11 @@ module Rack
 
 
       def secret
-        @options.fetch(:secret)
+        if @options.size > 1
+          return @options
+        else
+          @options.fetch(:secret)
+        end
       end
 
 
@@ -49,11 +53,20 @@ module Rack
         Yajl::Parser.new.parse(base64_url_decode(payload))
       end
 
-
+      # Parameter secret can be a single string or an options hash
+      # if multiple apps we have to check all the keys for validity. Since facebook signed
+      # requests can only de decodede with the correct secret key there is know way to know
+      # beforehand. Beware also this is run on every request.
       def self.valid_signature?(secret, signature, data)
         signature = base64_url_decode(signature)
-        expected_signature = OpenSSL::HMAC.digest('SHA256', secret, data.tr("-_", "+/")) #TODO Is this tr supposed to be here?
-        signature == expected_signature
+        if secret.is_a?(String)
+          expected_signature = OpenSSL::HMAC.digest('SHA256', secret, data.tr("-_", "+/")) #TODO Is this tr supposed to be here?
+          signature == expected_signature
+        else
+          secret.each do |s,v|
+            return true if v[:secret] == expected_signature
+          end
+        end
       end
 
 
